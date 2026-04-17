@@ -1,0 +1,15 @@
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+.env
+.ipynb_checkpoints/
+data/raw/*
+!data/raw/.gitkeep
+data/staging/
+data/warehouse/
+*.duckdb
+*.duckdb.wal
+.DS_Store
+.pytest_cache/
+.streamlit/secrets.toml

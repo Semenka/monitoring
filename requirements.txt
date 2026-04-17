@@ -1,0 +1,11 @@
+streamlit>=1.40
+duckdb>=1.1
+pandas>=2.2
+pyarrow>=16
+plotly>=5.22
+pyyaml>=6
+pydantic>=2.7
+pandas_access>=0.0.1
+gdown>=5.2
+python-dotenv>=1.0
+pytest>=8.2

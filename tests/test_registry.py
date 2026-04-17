@@ -1,0 +1,27 @@
+"""Registry contains expected metrics & charts at the right levels."""
+from __future__ import annotations
+
+import monitoring.charts.metrics  # noqa: F401  (registers on import)
+from monitoring.charts.registry import REGISTRY
+
+
+def test_core_metrics_registered():
+    for m_id in ("oil", "water", "gas", "wtr_inj", "gas_inj", "gor", "wct"):
+        assert m_id in REGISTRY.metrics
+
+
+def test_pressure_metrics_are_well_only():
+    for m_id in ("bhp", "thp"):
+        assert REGISTRY.metrics[m_id].levels == frozenset({"well"})
+
+
+def test_gor_wct_not_at_well_level_by_default():
+    for c_id in ("gor_trend", "wct_trend"):
+        chart = REGISTRY.charts[c_id]
+        assert "well" not in chart.applicable_levels
+
+
+def test_every_chart_references_known_metrics():
+    for chart in REGISTRY.charts.values():
+        for m_id in chart.metrics:
+            assert m_id in REGISTRY.metrics, f"{chart.id} references unknown metric {m_id}"
