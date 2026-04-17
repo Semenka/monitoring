@@ -25,3 +25,17 @@ def test_every_chart_references_known_metrics():
     for chart in REGISTRY.charts.values():
         for m_id in chart.metrics:
             assert m_id in REGISTRY.metrics, f"{chart.id} references unknown metric {m_id}"
+
+
+def test_every_chart_has_known_category():
+    allowed = {"overview", "production", "injection", "ratio", "pressure"}
+    for chart in REGISTRY.charts.values():
+        assert chart.category in allowed, f"{chart.id} has unknown category {chart.category!r}"
+
+
+def test_no_chart_appears_in_multiple_tabs():
+    """Each category maps 1:1 to a tab; chart ids must be unique so keys don't collide."""
+    seen: dict[str, str] = {}
+    for chart in REGISTRY.charts.values():
+        assert chart.id not in seen, f"Duplicate chart id {chart.id}"
+        seen[chart.id] = chart.category

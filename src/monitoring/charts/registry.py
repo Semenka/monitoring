@@ -39,6 +39,7 @@ class Chart:
     metrics: tuple[str, ...]
     kind: str                                # 'line' | 'stacked' | 'bar' | 'area'
     applicable_levels: frozenset[str]
+    category: str = "production"             # 'overview'|'production'|'injection'|'ratio'|'pressure'
     per_entity: bool = True                  # show per-entity lines vs single total
     y_title: str | None = None
 
@@ -72,18 +73,23 @@ class _Registry:
         metrics: Iterable[str],
         kind: str,
         applicable_levels: Iterable[str] = ("field", "reservoir", "well"),
+        category: str = "production",
         per_entity: bool = True,
         y_title: str | None = None,
     ):
         self.charts[id] = Chart(
             id=id, title=title, metrics=tuple(metrics), kind=kind,
             applicable_levels=frozenset(applicable_levels),
-            per_entity=per_entity, y_title=y_title,
+            category=category, per_entity=per_entity, y_title=y_title,
         )
         return self.charts[id]
 
     def charts_for_level(self, level: str) -> list[Chart]:
         return [c for c in self.charts.values() if level in c.applicable_levels]
+
+    def charts_by_category(self, level: str, category: str) -> list[Chart]:
+        return [c for c in self.charts.values()
+                if level in c.applicable_levels and c.category == category]
 
     def available_metrics(self, level: str, mapped_cols: set[str]) -> list[Metric]:
         return [

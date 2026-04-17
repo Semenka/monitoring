@@ -1,4 +1,9 @@
-"""Tab renderers: Overview / Production / Injection / Ratios / Wells / Data Quality."""
+"""Tab renderers: Overview / Production / Injection / Ratios / Wells / Data Quality.
+
+Every `st.plotly_chart` call is given a unique `key` to avoid Streamlit's
+"DuplicateElementId" error; every chart is rendered from exactly one tab
+(via its `category` in the registry).
+"""
 from __future__ import annotations
 
 import pandas as pd
@@ -15,7 +20,6 @@ from monitoring.ui import components
 
 @st.cache_data(ttl=3600, show_spinner="Loading production data …")
 def _load(db_name: str, warehouse_path: str, f_tuple: tuple) -> pd.DataFrame:
-    # f_tuple = (level, selected, start, end, freq)
     import duckdb
     con = duckdb.connect(warehouse_path, read_only=True)
     f = FilterState(level=f_tuple[0], selected=list(f_tuple[1]),
@@ -25,18 +29,19 @@ def _load(db_name: str, warehouse_path: str, f_tuple: tuple) -> pd.DataFrame:
     return df
 
 
-def _render_charts(df: pd.DataFrame, level: str, group: str) -> None:
-    charts: list[Chart] = [c for c in REGISTRY.charts.values()
-                           if level in c.applicable_levels
-                           and all(m in REGISTRY.metrics for m in c.metrics)
-                           and REGISTRY.metrics[c.metrics[0]].kind == group]
+def _render_grid(charts: list[Chart], df: pd.DataFrame, prefix: str) -> None:
+    """Render charts in two columns; `prefix` scopes the element keys per tab."""
     if not charts:
-        st.info(f"No charts registered for group={group} at level={level}.")
+        st.caption("No charts available for this level/category.")
         return
     cols = st.columns(2)
     for i, chart in enumerate(charts):
         with cols[i % 2]:
-            st.plotly_chart(builders.build(chart, df), use_container_width=True)
+            st.plotly_chart(
+                builders.build(chart, df),
+                use_container_width=True,
+                key=f"{prefix}_{chart.id}",
+            )
 
 
 def render(cfg: DBConfig, f: FilterState) -> None:
@@ -45,44 +50,25 @@ def render(cfg: DBConfig, f: FilterState) -> None:
 
     tabs = st.tabs(["Overview", "Production", "Injection", "Ratios", "Wells table", "Data quality"])
 
-    # Overview
     with tabs[0]:
         _overview(df, cfg, f)
 
-    # Production
     with tabs[1]:
-        _render_charts(df, f.level, "volume")
-        vol_charts = [c for c in REGISTRY.charts.values()
-                      if f.level in c.applicable_levels and c.id == "prod_stacked"]
-        for c in vol_charts:
-            st.plotly_chart(builders.build(c, df), use_container_width=True)
+        _render_grid(REGISTRY.charts_by_category(f.level, "production"), df, prefix="prod")
 
-    # Injection
     with tabs[2]:
-        inj = [c for c in REGISTRY.charts.values()
-               if f.level in c.applicable_levels and c.id.startswith("inj_")]
-        cols = st.columns(2)
-        for i, chart in enumerate(inj):
-            with cols[i % 2]:
-                st.plotly_chart(builders.build(chart, df), use_container_width=True)
+        _render_grid(REGISTRY.charts_by_category(f.level, "injection"), df, prefix="inj")
 
-    # Ratios
     with tabs[3]:
-        ratios = [c for c in REGISTRY.charts.values()
-                  if f.level in c.applicable_levels
-                  and REGISTRY.metrics[c.metrics[0]].kind in ("ratio", "pressure")]
-        if not ratios:
-            st.caption("No ratio charts at this level. Switch to Field or Reservoir for GOR/WCT.")
-        cols = st.columns(2)
-        for i, chart in enumerate(ratios):
-            with cols[i % 2]:
-                st.plotly_chart(builders.build(chart, df), use_container_width=True)
+        charts = (REGISTRY.charts_by_category(f.level, "ratio")
+                  + REGISTRY.charts_by_category(f.level, "pressure"))
+        if not charts:
+            st.caption("No ratio/pressure charts at this level.")
+        _render_grid(charts, df, prefix="ratio")
 
-    # Wells table
     with tabs[4]:
         _wells_table(cfg, f)
 
-    # Data quality
     with tabs[5]:
         _data_quality(cfg)
 
@@ -97,30 +83,29 @@ def _overview(df: pd.DataFrame, cfg: DBConfig, f: FilterState) -> None:
     active_entities = df["entity"].nunique()
 
     c1, c2, c3, c4 = st.columns(4)
-    c1.metric("Cumulative oil", f"{total_oil/1e6:,.2f} MMbbl")
+    c1.metric("Cumulative oil",   f"{total_oil/1e6:,.2f} MMbbl")
     c2.metric("Cumulative water", f"{total_water/1e6:,.2f} MMbbl")
-    c3.metric("Cumulative gas", f"{total_gas/1e6:,.2f} MMmscf")
+    c3.metric("Cumulative gas",   f"{total_gas/1e6:,.2f} MMmscf")
     c4.metric(f"{f.level.capitalize()}s in view", f"{active_entities}")
 
-    c = REGISTRY.charts["prod_stacked"]
-    st.plotly_chart(builders.build(c, df), use_container_width=True)
+    overview_charts = REGISTRY.charts_by_category(f.level, "overview")
+    for chart in overview_charts:
+        st.plotly_chart(
+            builders.build(chart, df),
+            use_container_width=True,
+            key=f"overview_{chart.id}",
+        )
 
 
 def _wells_table(cfg: DBConfig, f: FilterState) -> None:
     con = warehouse.get_conn(cfg)
-    placeholders = ",".join(["?"] * len(f.selected)) if f.selected else "NULL"
-    if f.level == "well":
-        base_col, vals = "well", f.selected
-    elif f.level == "reservoir":
-        base_col, vals = "reservoir", f.selected
-    else:
-        base_col, vals = "field", f.selected
-
+    base_col = {"field": "field", "reservoir": "reservoir", "well": "well"}[f.level]
     where = ""
-    params = []
-    if vals:
+    params: list = []
+    if f.selected:
+        placeholders = ",".join(["?"] * len(f.selected))
         where = f"WHERE h.{base_col} IN ({placeholders})"
-        params = vals
+        params = f.selected
 
     df = con.execute(
         f"""
@@ -137,8 +122,12 @@ def _wells_table(cfg: DBConfig, f: FilterState) -> None:
         """, params
     ).df()
     con.close()
-    st.dataframe(df, use_container_width=True, hide_index=True)
-    components.download_csv(df, f"wells_{cfg.name.lower()}.csv")
+
+    if df.empty:
+        st.info("No rows for the current selection.")
+        return
+    st.dataframe(df, use_container_width=True, hide_index=True, key="wells_table_df")
+    components.download_csv(df, f"wells_{cfg.name.lower()}.csv", key="wells_dl")
 
 
 def _data_quality(cfg: DBConfig) -> None:
@@ -146,12 +135,11 @@ def _data_quality(cfg: DBConfig) -> None:
     recon = con.execute(
         """
         SELECT h.field,
-               SUM(m.oil_vol) FILTER (WHERE h.well IS NOT NULL) AS well_sum,
-               (SELECT SUM(m2.oil_vol) FROM v_monthly m2 JOIN v_hierarchy h2 USING (entity_id)
-                WHERE h2.field = h.field AND h2.well IS NOT NULL) AS field_total
+               SUM(m.oil_vol) AS well_sum_oil
         FROM v_monthly m JOIN v_hierarchy h USING (entity_id)
         WHERE h.well IS NOT NULL
         GROUP BY h.field
+        ORDER BY 1
         """
     ).df()
 
@@ -167,10 +155,10 @@ def _data_quality(cfg: DBConfig) -> None:
     ).df()
     con.close()
 
-    st.subheader("Hierarchy reconciliation (wells sum vs field)")
-    st.dataframe(recon, use_container_width=True, hide_index=True)
+    st.subheader("Total oil per field (wells reconciliation)")
+    st.dataframe(recon, use_container_width=True, hide_index=True, key="dq_recon_df")
 
     st.subheader("Out-of-range counts")
-    st.dataframe(neg_counts, use_container_width=True, hide_index=True)
+    st.dataframe(neg_counts, use_container_width=True, hide_index=True, key="dq_neg_df")
 
     st.caption("Expect zero negative volumes and days_on ≤ 31 per month.")

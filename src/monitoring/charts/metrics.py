@@ -55,22 +55,22 @@ def _thp(df): return df[S.THP]
 
 # --- Charts ----------------------------------------------------------------
 
-register_chart("prod_oil", "Oil production",  ["oil"],   kind="line")
-register_chart("prod_water", "Water production", ["water"], kind="line")
-register_chart("prod_gas", "Gas production",  ["gas"],   kind="line")
+register_chart("prod_oil",   "Oil production",   ["oil"],   kind="line", category="production")
+register_chart("prod_water", "Water production", ["water"], kind="line", category="production")
+register_chart("prod_gas",   "Gas production",   ["gas"],   kind="line", category="production")
 register_chart("prod_stacked", "Production mix (oil/water/gas-equiv)",
-               ["oil", "water", "gas"], kind="stacked", per_entity=False,
-               y_title="volume")
+               ["oil", "water", "gas"], kind="stacked", category="overview",
+               per_entity=False, y_title="volume")
 
-register_chart("inj_water", "Water injection", ["wtr_inj"], kind="line")
-register_chart("inj_gas", "Gas injection",   ["gas_inj"], kind="line")
+register_chart("inj_water", "Water injection", ["wtr_inj"], kind="line", category="injection")
+register_chart("inj_gas",   "Gas injection",   ["gas_inj"], kind="line", category="injection")
 
-register_chart("gor_trend", "GOR",  ["gor"], kind="line",
-               applicable_levels=("field", "reservoir"), per_entity=True)
+register_chart("gor_trend", "GOR",           ["gor"], kind="line",
+               applicable_levels=("field", "reservoir"), category="ratio", per_entity=True)
 register_chart("wct_trend", "Water cut (WCT)", ["wct"], kind="line",
-               applicable_levels=("field", "reservoir"), per_entity=True)
+               applicable_levels=("field", "reservoir"), category="ratio", per_entity=True)
 
 register_chart("bhp_trend", "BHP", ["bhp"], kind="line",
-               applicable_levels=("well",), per_entity=True)
+               applicable_levels=("well",), category="pressure", per_entity=True)
 register_chart("thp_trend", "THP", ["thp"], kind="line",
-               applicable_levels=("well",), per_entity=True)
+               applicable_levels=("well",), category="pressure", per_entity=True)

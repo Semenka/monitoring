@@ -9,11 +9,18 @@ def kpi_card(label: str, value: float | str, unit: str = "", help: str | None = 
     st.metric(label, f"{value:,.0f} {unit}" if isinstance(value, (int, float)) else str(value), help=help)
 
 
-def download_csv(df: pd.DataFrame, filename: str, label: str = "Download CSV") -> None:
+def download_csv(
+    df: pd.DataFrame,
+    filename: str,
+    label: str = "Download CSV",
+    key: str | None = None,
+) -> None:
     if df.empty:
         return
     st.download_button(
-        label, df.to_csv(index=False).encode(), file_name=filename, mime="text/csv"
+        label, df.to_csv(index=False).encode(),
+        file_name=filename, mime="text/csv",
+        key=key or f"dl_{filename}",
     )
 
 
