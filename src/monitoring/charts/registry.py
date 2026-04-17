@@ -2,23 +2,21 @@
 
 Adding a new parameter (e.g. BHP) becomes ~10 lines:
 
-    @register_metric("bhp", "Bottomhole Pressure", unit="psi", needs=["bhp"],
-                     levels={"well"})
+    @register_metric("bhp", "Bottomhole Pressure", unit="psi",
+                     needs=["bhp"], levels=("well",))
     def _bhp(df): return df["bhp"]
 
-    @register_chart("bhp_trend", metrics=["bhp"], kind="line",
-                    applicable_levels={"well"})
+    @register_chart("bhp_trend", "BHP", ["bhp"], kind="line",
+                    applicable_levels=("well",), category="pressure",
+                    y_title="psi")
 
-Charts registered here appear automatically on the matching tabs, as long as
+Charts registered here appear automatically on the matching tabs as long as
 the underlying column is mapped in the YAML config.
 """
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Callable, Iterable
-
-
-Agg = Callable  # pandas.Series aggregator
 
 
 @dataclass(frozen=True)
@@ -29,7 +27,8 @@ class Metric:
     needs: tuple[str, ...]
     derive: Callable                         # (df) -> Series
     levels: frozenset[str]                   # {'field','reservoir','well'}
-    kind: str = "volume"                     # 'volume' | 'ratio' | 'pressure'
+    kind: str = "volume"                     # 'volume'|'ratio'|'pressure'
+    cumulative: bool = False                 # apply running sum per entity before plot
 
 
 @dataclass(frozen=True)
@@ -37,11 +36,14 @@ class Chart:
     id: str
     title: str
     metrics: tuple[str, ...]
-    kind: str                                # 'line' | 'stacked' | 'bar' | 'area'
+    kind: str                                # 'line'|'line_log'|'line_logy'|
+                                              # 'stacked'|'bar'|'area'|'xy'|'lines_dual'
     applicable_levels: frozenset[str]
-    category: str = "production"             # 'overview'|'production'|'injection'|'ratio'|'pressure'
-    per_entity: bool = True                  # show per-entity lines vs single total
+    category: str = "production"             # 'overview'|'production'|'injection'|'ratio'|'pressure'|'diagnostic'
+    per_entity: bool = True                  # color by entity vs by metric
     y_title: str | None = None
+    x_title: str | None = None
+    x_metric: str | None = None              # for kind='xy' cross-plots
 
 
 class _Registry:
@@ -57,11 +59,13 @@ class _Registry:
         needs: Iterable[str],
         levels: Iterable[str] = ("field", "reservoir", "well"),
         kind: str = "volume",
+        cumulative: bool = False,
     ):
         def deco(fn: Callable):
             self.metrics[id] = Metric(
                 id=id, label=label, unit=unit, needs=tuple(needs),
                 derive=fn, levels=frozenset(levels), kind=kind,
+                cumulative=cumulative,
             )
             return fn
         return deco
@@ -76,11 +80,14 @@ class _Registry:
         category: str = "production",
         per_entity: bool = True,
         y_title: str | None = None,
+        x_title: str | None = None,
+        x_metric: str | None = None,
     ):
         self.charts[id] = Chart(
             id=id, title=title, metrics=tuple(metrics), kind=kind,
             applicable_levels=frozenset(applicable_levels),
-            category=category, per_entity=per_entity, y_title=y_title,
+            category=category, per_entity=per_entity,
+            y_title=y_title, x_title=x_title, x_metric=x_metric,
         )
         return self.charts[id]
 

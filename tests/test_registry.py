@@ -6,7 +6,12 @@ from monitoring.charts.registry import REGISTRY
 
 
 def test_core_metrics_registered():
-    for m_id in ("oil", "water", "gas", "wtr_inj", "gas_inj", "gor", "wct"):
+    for m_id in (
+        "oil_rate", "water_rate", "gas_rate",
+        "wtr_inj_rate", "gas_inj_rate",
+        "cum_oil", "cum_water", "cum_gas",
+        "gor", "wct", "wor", "vrr",
+    ):
         assert m_id in REGISTRY.metrics
 
 
@@ -28,7 +33,7 @@ def test_every_chart_references_known_metrics():
 
 
 def test_every_chart_has_known_category():
-    allowed = {"overview", "production", "injection", "ratio", "pressure"}
+    allowed = {"overview", "production", "injection", "ratio", "pressure", "diagnostic"}
     for chart in REGISTRY.charts.values():
         assert chart.category in allowed, f"{chart.id} has unknown category {chart.category!r}"
 
