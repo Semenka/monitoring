@@ -1,0 +1,35 @@
+name: ASAB
+# ASAB is a multi-part OFM export (~3.0 GB total across three files).
+# All three parts must be downloaded locally, then the loader concatenates them.
+mdb_files:
+  - data/raw/OFM_ASAB_25032026_1_1.mdb
+  - data/raw/OFM_ASAB_25032026_2_1.mdb
+  - data/raw/OFM_ASAB_26032026_3_1.mdb
+gdrive_file_ids:
+  - 1qdYFWZ0Y8vdo9CZnDwu6td86ZvEHOgEM   # _1_1  (935 MB)
+  - 1Zbrky_U1NxdoON_UQ-wnUNvNc1-8Ngcx   # _2_1  (2.1 GB)
+  - 1yDS2Ui-ue_3Bz1hHdihGD7CvD27wkCO_   # _3_1  (33 MB)
+
+tables:
+  entity:
+    source: ENTITIES
+    columns: {entity_id: ENT_ID, name: ENT_NAME, level: ENT_TYPE, parent_id: ENT_PARENT}
+  monthly:
+    source: MONTHLY
+    date_col: PRD_DATE
+    entity_col: ENT_ID
+    columns:
+      oil_vol: OIL_VOL
+      water_vol: WATER_VOL
+      gas_vol: GAS_VOL
+      wtr_inj: WTR_INJ
+      gas_inj: GAS_INJ
+      days_on: DAYS_ON
+      bhp: null
+      thp: null
+  static:
+    source: WELL_HEADER
+    columns: {well_type: WELL_TYPE, status: STATUS, completion_date: COMP_DATE}
+
+units: {oil_vol: bbl, water_vol: bbl, gas_vol: mscf, wtr_inj: bbl, gas_inj: mscf}
+level_values: {field: FIELD, reservoir: RESERVOIR, well: WELL}

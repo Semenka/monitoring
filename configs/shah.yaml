@@ -1,0 +1,28 @@
+name: SHAH
+mdb_file: data/raw/OFM_SHAH_24032026.mdb
+gdrive_file_ids:
+  - 1FkBgBx62ctqzixnK4O30ne1R4QIgJZNy    # (752 MB)
+
+tables:
+  entity:
+    source: ENTITIES
+    columns: {entity_id: ENT_ID, name: ENT_NAME, level: ENT_TYPE, parent_id: ENT_PARENT}
+  monthly:
+    source: MONTHLY
+    date_col: PRD_DATE
+    entity_col: ENT_ID
+    columns:
+      oil_vol: OIL_VOL
+      water_vol: WATER_VOL
+      gas_vol: GAS_VOL
+      wtr_inj: WTR_INJ
+      gas_inj: GAS_INJ
+      days_on: DAYS_ON
+      bhp: null
+      thp: null
+  static:
+    source: WELL_HEADER
+    columns: {well_type: WELL_TYPE, status: STATUS, completion_date: COMP_DATE}
+
+units: {oil_vol: bbl, water_vol: bbl, gas_vol: mscf, wtr_inj: bbl, gas_inj: mscf}
+level_values: {field: FIELD, reservoir: RESERVOIR, well: WELL}

@@ -22,8 +22,8 @@ def _config_hash(cfg: DBConfig) -> str:
 
 
 def _source_mtime(cfg: DBConfig) -> float:
-    p = cfg.mdb_path
-    return p.stat().st_mtime if p.exists() else 0.0
+    mtimes = [p.stat().st_mtime for p in cfg.mdb_paths if p.exists()]
+    return max(mtimes) if mtimes else 0.0
 
 
 def _select_mapping(columns: dict[str, str | None]) -> list[tuple[str, str | None]]:

@@ -1,0 +1,59 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master, "claude/**"]
+  pull_request:
+    branches: [main, master]
+  workflow_dispatch: {}
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install mdbtools
+        run: sudo apt-get update && sudo apt-get install -y mdbtools
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install Python dependencies
+        run: pip install -r requirements.txt
+
+      - name: Generate synthetic sample data
+        run: python scripts/generate_sample.py
+        env:
+          PYTHONPATH: src
+
+      - name: Build sample DuckDB warehouses
+        run: |
+          python scripts/convert_mdb.py --config configs/sample.yaml --force
+          python scripts/convert_mdb.py --config configs/sample_asab.yaml --force
+          python scripts/convert_mdb.py --config configs/sample_sahil.yaml --force
+          python scripts/convert_mdb.py --config configs/sample_shah.yaml --force
+        env:
+          PYTHONPATH: src
+
+      - name: Run tests
+        run: pytest -q
+        env:
+          PYTHONPATH: src
+
+      - name: Verify sample warehouses
+        run: |
+          python scripts/verify.py --config configs/sample.yaml
+          python scripts/verify.py --config configs/sample_asab.yaml
+          python scripts/verify.py --config configs/sample_sahil.yaml
+          python scripts/verify.py --config configs/sample_shah.yaml
+        env:
+          PYTHONPATH: src
+
+      - name: Streamlit import smoke-test
+        run: |
+          python -c "import monitoring.charts.metrics; from monitoring.ui import sidebar, pages; print('ui imports ok')"
+        env:
+          PYTHONPATH: src

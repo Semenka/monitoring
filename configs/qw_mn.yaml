@@ -1,5 +1,7 @@
 name: QW_MN
 mdb_file: data/raw/OFM_WQMN_24032026.mdb
+gdrive_file_ids:
+  - 1CPwO6GpzP6ikniPlcnesgA89C9lG_DQ1    # (220 MB)
 
 # Auto-populated on first extraction from real OFM tables. Canonical keys are
 # fixed; right-hand-side values are the real OFM column names to look up.

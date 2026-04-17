@@ -1,0 +1,27 @@
+name: SAMPLE_SHAH
+mdb_file: data/raw/SAMPLE_SHAH.synthetic
+synthetic: true
+
+tables:
+  entity:
+    source: ENTITIES
+    columns: {entity_id: entity_id, name: name, level: level, parent_id: parent_id}
+  monthly:
+    source: MONTHLY
+    date_col: date
+    entity_col: entity_id
+    columns:
+      oil_vol: oil_vol
+      water_vol: water_vol
+      gas_vol: gas_vol
+      wtr_inj: wtr_inj
+      gas_inj: gas_inj
+      days_on: days_on
+      bhp: bhp
+      thp: thp
+  static:
+    source: WELL_HEADER
+    columns: {well_type: well_type, status: status, completion_date: completion_date}
+
+units: {oil_vol: bbl, water_vol: bbl, gas_vol: mscf, wtr_inj: bbl, gas_inj: mscf}
+level_values: {field: FIELD, reservoir: RESERVOIR, well: WELL}

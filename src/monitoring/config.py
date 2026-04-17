@@ -42,7 +42,9 @@ class DBTables(BaseModel):
 
 class DBConfig(BaseModel):
     name: str
-    mdb_file: str
+    mdb_file: str | None = None                    # single-file DB
+    mdb_files: list[str] = Field(default_factory=list)  # multi-part OFM exports
+    gdrive_file_ids: list[str] = Field(default_factory=list)
     tables: DBTables
     units: dict[str, str] = Field(default_factory=dict)
     level_values: dict[str, str] = Field(
@@ -52,7 +54,17 @@ class DBConfig(BaseModel):
 
     @property
     def mdb_path(self) -> Path:
-        return Path(self.mdb_file)
+        """First .mdb file — used for single-file DBs and for mtime tracking."""
+        return Path(self.mdb_paths[0]) if self.mdb_paths else Path(self.mdb_file or "")
+
+    @property
+    def mdb_paths(self) -> list[Path]:
+        """Full list of .mdb files to extract from (supports multi-part OFM dumps)."""
+        if self.mdb_files:
+            return [Path(p) for p in self.mdb_files]
+        if self.mdb_file:
+            return [Path(self.mdb_file)]
+        return []
 
     @property
     def warehouse_path(self) -> Path:

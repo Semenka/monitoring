@@ -24,10 +24,11 @@ from monitoring.io.gdrive import fetch_from_env
 
 
 def _list_tables(cfg) -> None:
-    tables = mdb_extract.list_tables(cfg.mdb_path)
-    print(f"Tables in {cfg.mdb_path.name}:")
-    for t in tables:
-        print(f"  - {t}")
+    for p in cfg.mdb_paths:
+        tables = mdb_extract.list_tables(p)
+        print(f"Tables in {p.name}:")
+        for t in tables:
+            print(f"  - {t}")
 
 
 def _extract(cfg) -> None:
@@ -37,8 +38,12 @@ def _extract(cfg) -> None:
     ]
     if cfg.tables.static:
         needed.append(cfg.tables.static.source)
-    print(f"Extracting {len(needed)} tables to {cfg.staging_dir} …")
-    mdb_extract.bulk_extract(cfg.mdb_path, needed, cfg.staging_dir)
+    print(f"Extracting {len(needed)} tables from {len(cfg.mdb_paths)} .mdb file(s) "
+          f"to {cfg.staging_dir} …")
+    if len(cfg.mdb_paths) == 1:
+        mdb_extract.bulk_extract(cfg.mdb_paths[0], needed, cfg.staging_dir)
+    else:
+        mdb_extract.multi_extract(cfg.mdb_paths, needed, cfg.staging_dir)
     print("Done.")
 
 
@@ -57,21 +62,33 @@ def main() -> int:
     cfg = load_db_config(args.config)
 
     if args.download:
-        env_var = f"GDRIVE_FILE_ID_{cfg.name.upper()}"
-        file_id = os.environ.get(env_var)
-        if not file_id:
-            print(f"Warning: {env_var} not set; skipping download.", file=sys.stderr)
+        # Prefer explicit per-file IDs in config; fall back to env var with DB name.
+        file_ids = list(cfg.gdrive_file_ids)
+        if not file_ids:
+            env_var = f"GDRIVE_FILE_ID_{cfg.name.upper()}"
+            file_id = os.environ.get(env_var)
+            if file_id:
+                file_ids = [file_id]
+        if not file_ids:
+            print(f"Warning: no Drive file IDs configured for {cfg.name}; skipping download.",
+                  file=sys.stderr)
         else:
-            cfg.mdb_path.parent.mkdir(parents=True, exist_ok=True)
-            fetch_from_env(env_var, cfg.mdb_path)
+            import gdown
+            for fid, dest in zip(file_ids, cfg.mdb_paths):
+                dest.parent.mkdir(parents=True, exist_ok=True)
+                url = f"https://drive.google.com/uc?id={fid}"
+                print(f"Downloading {fid} -> {dest}")
+                gdown.download(url, str(dest), quiet=False)
 
     if args.fetch_only:
         return 0
 
-    if not cfg.mdb_path.exists() and not cfg.synthetic:
+    missing = [p for p in cfg.mdb_paths if not p.exists()]
+    if missing and not cfg.synthetic:
         print(
-            f"ERROR: {cfg.mdb_path} not found. Download it manually from Google Drive "
-            f"and place it at that path, then re-run.",
+            f"ERROR: {len(missing)} .mdb file(s) not found: "
+            f"{[str(p) for p in missing]}. Download them manually from Google Drive "
+            f"and place them at those paths, then re-run.",
             file=sys.stderr,
         )
         return 2
